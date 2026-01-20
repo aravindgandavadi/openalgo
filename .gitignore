@@ -73,3 +73,5 @@ frontend/.cache/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+nginx/ssl/
+.env.prod

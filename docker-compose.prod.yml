@@ -1,0 +1,96 @@
+# Docker Compose for Production with Nginx + Cloudflare SSL
+# Usage: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: openalgo-postgres
+    environment:
+      POSTGRES_USER: openalgo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openalgo_prod_secure_password}
+      POSTGRES_DB: openalgo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U openalgo" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - openalgo-net
+
+  # OpenAlgo Application
+  openalgo:
+    image: openalgo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openalgo-web
+    expose:
+      - "5000"
+    ports:
+      - "8765:8765" # WebSocket
+    volumes:
+      - openalgo_db:/app/db
+      - openalgo_logs:/app/logs
+      - openalgo_log:/app/log
+      - openalgo_strategies:/app/strategies
+      - openalgo_keys:/app/keys
+      - ./.env:/app/.env:ro
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      # DATABASE_URL is read from .env file, not set here
+    restart: unless-stopped
+    networks:
+      - openalgo-net
+
+  # OpenAlgo Chart (React App)
+  openalgo-chart:
+    image: openalgo-chart:latest
+    build:
+      context: ../openalgo-chart
+      dockerfile: Dockerfile
+    container_name: openalgo-chart
+    expose:
+      - "80"
+    restart: unless-stopped
+    networks:
+      - openalgo-net
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: openalgo-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - openalgo
+      - openalgo-chart
+    restart: unless-stopped
+    networks:
+      - openalgo-net
+
+volumes:
+  postgres_data:
+    driver: local
+  openalgo_db:
+    driver: local
+  openalgo_logs:
+    driver: local
+  openalgo_log:
+    driver: local
+  openalgo_strategies:
+    driver: local
+  openalgo_keys:
+    driver: local
+
+networks:
+  openalgo-net:
+    driver: bridge

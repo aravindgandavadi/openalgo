@@ -1,0 +1,62 @@
+# Docker Compose for Local Development with PostgreSQL
+# Usage: docker-compose -f docker-compose.local.yml up -d
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: openalgo-postgres
+    environment:
+      POSTGRES_USER: openalgo
+      POSTGRES_PASSWORD: openalgo_dev_password
+      POSTGRES_DB: openalgo
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U openalgo" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # OpenAlgo Application
+  openalgo:
+    image: openalgo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openalgo-web
+    ports:
+      - "5001:5000"
+      - "${WEBSOCKET_PORT:-8765}:8765"
+    volumes:
+      - openalgo_db:/app/db
+      - openalgo_logs:/app/logs
+      - openalgo_log:/app/log
+      - openalgo_strategies:/app/strategies
+      - openalgo_keys:/app/keys
+      - ./.env:/app/.env:ro
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-development}
+      - FLASK_DEBUG=${FLASK_DEBUG:-1}
+      - DATABASE_URL=postgresql://openalgo:openalgo_dev_password@postgres:5432/openalgo
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  openalgo_db:
+    driver: local
+  openalgo_logs:
+    driver: local
+  openalgo_log:
+    driver: local
+  openalgo_strategies:
+    driver: local
+  openalgo_keys:
+    driver: local
