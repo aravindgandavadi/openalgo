@@ -73,10 +73,13 @@ class ZerodhaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if not self.api_key:
                 return {'status': 'error', 'message': 'API key not found in environment variables'}
             
-            # Get auth token from database
+            # Get auth token from database (this should have fresh credentials after re-login)
             auth_token = get_auth_token(user_id)
             if not auth_token:
+                self.logger.error(f"No auth token found in database for user {user_id}")
                 return {'status': 'error', 'message': 'Authentication token not found'}
+            
+            self.logger.debug(f"Retrieved auth token for user {user_id} (length: {len(auth_token) if auth_token else 0})")
             
             # Handle auth token format (api_key:access_token)
             if ':' in auth_token:

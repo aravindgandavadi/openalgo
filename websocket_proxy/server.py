@@ -494,8 +494,25 @@ class WebSocketProxy:
         # Store the broker mapping for this user
         self.user_broker_mapping[user_id] = broker_name
         
+        # Check if existing adapter needs to be reinitialized
+        # This handles the case where broker tokens were refreshed (e.g., after daily Zerodha token expiry)
+        needs_new_adapter = user_id not in self.broker_adapters
+        
+        if user_id in self.broker_adapters:
+            existing_adapter = self.broker_adapters[user_id]
+            # Check if the adapter is connected - if not, it likely has stale credentials
+            if hasattr(existing_adapter, 'is_connected') and not existing_adapter.is_connected():
+                logger.info(f"Existing {broker_name} adapter for user {user_id} is not connected. Reinitializing with fresh credentials.")
+                # Disconnect and clean up the old adapter
+                try:
+                    existing_adapter.disconnect()
+                except Exception as e:
+                    logger.warning(f"Error disconnecting stale adapter: {e}")
+                del self.broker_adapters[user_id]
+                needs_new_adapter = True
+        
         # Create or reuse broker adapter
-        if user_id not in self.broker_adapters:
+        if needs_new_adapter:
             try:
                 # Create broker adapter with dynamic broker selection
                 adapter = create_broker_adapter(broker_name)
