@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Set, Any, Callable
 
 from websocket_proxy.base_adapter import BaseBrokerWebSocketAdapter
 from database.token_db import get_token
-from database.auth_db import get_auth_token
+from database.auth_db import get_auth_token_dbquery, decrypt_token
 
 # Import the WebSocket client
 from .zerodha_websocket import ZerodhaWebSocket
@@ -73,13 +73,17 @@ class ZerodhaWebSocketAdapter(BaseBrokerWebSocketAdapter):
             if not self.api_key:
                 return {'status': 'error', 'message': 'API key not found in environment variables'}
             
-            # Get auth token from database (this should have fresh credentials after re-login)
-            auth_token = get_auth_token(user_id)
-            if not auth_token:
-                self.logger.error(f"No auth token found in database for user {user_id}")
+            # Get auth token directly from database, bypassing in-memory cache.
+            # This is critical because Flask web process and WebSocket proxy process
+            # have separate caches. After user re-login, Flask updates its cache but
+            # WebSocket proxy's cache remains stale. Direct DB query ensures fresh token.
+            auth_obj = get_auth_token_dbquery(user_id)
+            if not auth_obj or auth_obj.is_revoked:
+                self.logger.error(f"No valid auth token found in database for user {user_id}")
                 return {'status': 'error', 'message': 'Authentication token not found'}
             
-            self.logger.debug(f"Retrieved auth token for user {user_id} (length: {len(auth_token) if auth_token else 0})")
+            auth_token = decrypt_token(auth_obj.auth)
+            self.logger.debug(f"Retrieved auth token from DB for user {user_id} (length: {len(auth_token) if auth_token else 0})")
             
             # Handle auth token format (api_key:access_token)
             if ':' in auth_token:
