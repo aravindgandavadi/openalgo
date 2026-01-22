@@ -213,8 +213,9 @@ Client                  WebSocket Proxy               Database
 Client                  WebSocket Proxy            Broker Adapter
   │                          │                          │
   │  1. {action: "subscribe",│                          │
-  │     symbols: ["NSE:SBIN"],                          │
-  │     mode: "LTP"}         │                          │
+  │     symbols: [{symbol:   │                          │
+  │     "SBIN", exchange:    │                          │
+  │     "NSE"}], mode: "LTP"}│                          │
   ├─────────────────────────►│                          │
   │                          │                          │
   │                          │  2. Get/create adapter   │
@@ -285,7 +286,11 @@ Broker API            Broker Adapter          ZeroMQ             Proxy          
 ```json
 {
   "action": "subscribe",
-  "symbols": ["NSE:SBIN-EQ", "NSE:RELIANCE-EQ"],
+  "symbols": [
+    {"symbol": "SBIN", "exchange": "NSE"},
+    {"symbol": "RELIANCE", "exchange": "NSE"},
+    {"symbol": "NIFTY30JAN25FUT", "exchange": "NFO"}
+  ],
   "mode": "LTP"  // LTP, QUOTE, or DEPTH
 }
 ```
@@ -294,7 +299,9 @@ Broker API            Broker Adapter          ZeroMQ             Proxy          
 ```json
 {
   "action": "unsubscribe",
-  "symbols": ["NSE:SBIN-EQ"]
+  "symbols": [
+    {"symbol": "SBIN", "exchange": "NSE"}
+  ]
 }
 ```
 
@@ -303,7 +310,7 @@ Broker API            Broker Adapter          ZeroMQ             Proxy          
 **Market Data (LTP):**
 ```json
 {
-  "symbol": "NSE:SBIN-EQ",
+  "symbol": "SBIN",
   "exchange": "NSE",
   "ltp": 625.50,
   "timestamp": "2024-01-15T10:30:00+05:30"
@@ -313,7 +320,7 @@ Broker API            Broker Adapter          ZeroMQ             Proxy          
 **Market Data (QUOTE):**
 ```json
 {
-  "symbol": "NSE:SBIN-EQ",
+  "symbol": "SBIN",
   "exchange": "NSE",
   "ltp": 625.50,
   "open": 620.00,
@@ -328,7 +335,7 @@ Broker API            Broker Adapter          ZeroMQ             Proxy          
 **Market Data (DEPTH):**
 ```json
 {
-  "symbol": "NSE:SBIN-EQ",
+  "symbol": "SBIN",
   "exchange": "NSE",
   "ltp": 625.50,
   "depth": {
@@ -500,14 +507,46 @@ export function useMarketData(symbols: string[], mode: 'ltp' | 'quote' | 'depth'
 }
 ```
 
+## websocket_proxy/ Directory Structure
+
+```
+websocket_proxy/
+├── server.py              # WebSocketProxy class - main server
+├── base_adapter.py        # BaseBrokerWebSocketAdapter ABC
+├── broker_factory.py      # Creates broker-specific adapters
+├── connection_manager.py  # Connection pool management
+└── app_integration.py     # Flask app integration
+```
+
+### App Integration (app_integration.py)
+
+The WebSocket server runs as a **daemon thread** inside the main Flask application:
+
+```python
+# Called from app.py on startup
+start_websocket_proxy(app)
+
+# Lifecycle:
+# 1. Check if should start (skip in Flask debug parent process)
+# 2. Start WebSocket server in daemon thread
+# 3. Register cleanup handlers for SIGINT/SIGTERM
+# 4. WebSocket runs on port 8765 alongside Flask on port 5000
+```
+
+**Key Points:**
+- No separate service needed - WebSocket runs inside main process
+- Single worker (`-w 1`) required for Gunicorn
+- Thread automatically cleans up on application shutdown
+- ZeroMQ context shared for message routing
+
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
-| `websocket_proxy/server.py` | Main WebSocket proxy server |
+| `websocket_proxy/server.py` | Main WebSocket proxy server (port 8765) |
 | `websocket_proxy/base_adapter.py` | Base class for broker adapters |
 | `websocket_proxy/broker_factory.py` | Creates broker-specific adapters |
 | `websocket_proxy/connection_manager.py` | Connection pool management |
-| `websocket_proxy/app_integration.py` | Flask app integration |
+| `websocket_proxy/app_integration.py` | Flask app integration (thread management) |
 | `broker/*/streaming/*_adapter.py` | Broker-specific implementations |
 | `frontend/src/hooks/useMarketData.ts` | React WebSocket hook |
