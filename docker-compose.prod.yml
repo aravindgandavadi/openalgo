@@ -2,25 +2,6 @@
 # Usage: docker compose -f docker-compose.prod.yml up -d
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:17-alpine
-    container_name: openalgo-postgres
-    environment:
-      POSTGRES_USER: openalgo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openalgo_prod_secure_password}
-      POSTGRES_DB: openalgo
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U openalgo" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - openalgo-net
-
   # OpenAlgo Application
   openalgo:
     image: openalgo:latest
@@ -42,7 +23,6 @@ services:
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=0
-      # DATABASE_URL is read from .env file, not set here
     restart: unless-stopped
     networks:
       - openalgo-net
@@ -78,8 +58,6 @@ services:
       - openalgo-net
 
 volumes:
-  postgres_data:
-    driver: local
   openalgo_db:
     driver: local
   openalgo_logs:
