@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:frontend/dist/assets/oi-profile-C-uIPhei.js
 import{w as a}from"./index-Cxt10N71.js";const t={getProfileData:async e=>(await a.post("/oiprofile/api/profile-data",e)).data,getIntervals:async()=>(await a.get("/oiprofile/api/intervals")).data,getUnderlyings:async e=>(await a.get(`/search/api/underlyings?exchange=${e}`)).data,getExpiries:async(e,s)=>(await a.get(`/search/api/expiries?exchange=${e}&underlying=${s}`)).data};export{t as o};
+========
+import{w as a}from"./index-D5bUJiSk.js";const t={getProfileData:async e=>(await a.post("/oiprofile/api/profile-data",e)).data,getIntervals:async()=>(await a.get("/oiprofile/api/intervals")).data,getUnderlyings:async e=>(await a.get(`/search/api/underlyings?exchange=${e}`)).data,getExpiries:async(e,s)=>(await a.get(`/search/api/expiries?exchange=${e}&underlying=${s}`)).data};export{t as o};
+>>>>>>>> origin/main:frontend/dist/assets/oi-profile-BjnClCeZ.js
