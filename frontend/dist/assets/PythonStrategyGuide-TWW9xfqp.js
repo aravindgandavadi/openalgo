@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:frontend/dist/assets/PythonStrategyGuide-TWW9xfqp.js
 import{j as e}from"./vendor-react-CCyQGCED.js";import{B as h,e as s,s as E}from"./index-B5UQpSQV.js";import{A as x,b as u,a as p}from"./alert-DmV-QC5H.js";import{C as n,a as d,b as c,c as f,d as o}from"./card-bxgVlB6g.js";import{A as T,a as t,b as a,c as l}from"./accordion-Beo0CErp.js";import{N as C,p as N,aQ as i,a7 as b,aZ as g,b0 as O,ay as _,as as w,a6 as S,T as m,l as I,aP as j,V as v,ai as y,A as L,aJ as P,a_ as U}from"./vendor-icons-CCn_k3dF.js";import{L as r}from"./vendor-router-Dzc1xxhr.js";import"./vendor-charts-l0_txfiz.js";import"./vendor-radix-CYVJEJRR.js";const A=`"""
+========
+import{j as e}from"./vendor-react-CCyQGCED.js";import{B as h,e as s,s as E}from"./index-D0023jFM.js";import{A as x,b as u,a as p}from"./alert-Dlgyh2fF.js";import{C as n,a as d,b as c,c as f,d as o}from"./card-CDguRyHx.js";import{A as T,a as t,b as a,c as l}from"./accordion-BN1i_BbC.js";import{N as C,p as N,aQ as i,a7 as b,aZ as g,b0 as O,ay as _,as as w,a6 as S,T as m,l as I,aP as j,V as v,ai as y,A as L,aJ as P,a_ as U}from"./vendor-icons-CCn_k3dF.js";import{L as r}from"./vendor-router-Dzc1xxhr.js";import"./vendor-charts-l0_txfiz.js";import"./vendor-radix-CYVJEJRR.js";const A=`"""
+>>>>>>>> upstream/main:frontend/dist/assets/PythonStrategyGuide-DWOuF6Lf.js
 Sample EMA Crossover Strategy using OpenAlgo SDK
 This strategy buys when fast EMA crosses above slow EMA
 and sells when fast EMA crosses below slow EMA.
