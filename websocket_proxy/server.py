@@ -172,6 +172,11 @@ class WebSocketProxy:
                 except aio.CancelledError:
                     pass
 
+                # Properly stop the server and release the port.
+                # This calls server.wait_closed() which ensures the socket
+                # is fully released before the event loop shuts down.
+                await self.stop()
+
             except Exception as e:
                 logger.exception(f"Failed to start WebSocket server: {e}")
                 raise
@@ -237,7 +242,7 @@ class WebSocketProxy:
                     logger.exception(f"Error disconnecting adapter for user {user_id}: {e}")
 
             # Close ZeroMQ socket with linger=0 for immediate close
-            if hasattr(self, "socket") and self.socket:
+            if hasattr(self, "socket") and self.socket and not self.socket.closed:
                 try:
                     self.socket.setsockopt(zmq.LINGER, 0)  # Don't wait for pending messages
                     self.socket.close()
@@ -245,7 +250,7 @@ class WebSocketProxy:
                     logger.exception(f"Error closing ZMQ socket: {e}")
 
             # Close ZeroMQ context with timeout
-            if hasattr(self, "context") and self.context:
+            if hasattr(self, "context") and self.context and not self.context.closed:
                 try:
                     self.context.term()
                 except Exception as e:
