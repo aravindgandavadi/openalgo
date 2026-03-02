@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:frontend/dist/assets/separator-Bur_ybRy.js
-import{j as i}from"./vendor-react-Oj_OEjND.js";import{ac as n}from"./vendor-radix-C5Vc2Qbp.js";import{c as e}from"./index-DVH94cJu.js";function m({className:t,orientation:a="horizontal",decorative:o=!0,...r}){return i.jsx(n,{"data-slot":"separator",decorative:o,orientation:a,className:e("bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",t),...r})}export{m as S};
-========
-import{j as i}from"./vendor-react-Oj_OEjND.js";import{ac as n}from"./vendor-radix-C5Vc2Qbp.js";import{c as e}from"./index-DT1p5hlY.js";function m({className:t,orientation:a="horizontal",decorative:o=!0,...r}){return i.jsx(n,{"data-slot":"separator",decorative:o,orientation:a,className:e("bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",t),...r})}export{m as S};
->>>>>>>> upstream/main:frontend/dist/assets/separator-BscoGhNg.js
