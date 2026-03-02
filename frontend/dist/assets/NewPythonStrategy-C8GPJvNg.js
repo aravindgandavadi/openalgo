@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:frontend/dist/assets/NewPythonStrategy-C8GPJvNg.js
 import{r,j as e}from"./vendor-react-Oj_OEjND.js";import{B as d,s as l}from"./index-DVH94cJu.js";import{p as O}from"./python-strategy-CzPXf_g-.js";import{A as U,a as Y}from"./alert-CX7Qym7_.js";import{C as b,a as v,b as C,c as K,d as w}from"./card-D0iKi41v.js";import{C as G,b as R,a as W}from"./collapsible-BUz3jP2i.js";import{I as x}from"./input-D3JkXRDK.js";import{L as m}from"./label-zTSI-krM.js";import{b as $}from"./python-strategy-CJF1bPLS.js";import{N as q,I as H,aO as T,a_ as P,V}from"./vendor-icons-CM9yieS6.js";import{a as X,L as Z}from"./vendor-router-DvoFlIsv.js";import"./vendor-charts-l0_txfiz.js";import"./vendor-radix-C5Vc2Qbp.js";const A=`"""
+========
+import{r,j as e}from"./vendor-react-Oj_OEjND.js";import{B as d,s as l}from"./index-DT1p5hlY.js";import{p as O}from"./python-strategy-SrgJB-35.js";import{A as U,a as Y}from"./alert-C7XvBO3A.js";import{C as b,a as v,b as C,c as K,d as w}from"./card-6nP2Q03G.js";import{C as G,b as R,a as W}from"./collapsible-BUz3jP2i.js";import{I as x}from"./input-C7jBD95v.js";import{L as m}from"./label-DKxPKYq2.js";import{b as $}from"./python-strategy-CJF1bPLS.js";import{N as q,I as H,aO as T,a_ as P,V}from"./vendor-icons-CM9yieS6.js";import{a as X,L as Z}from"./vendor-router-DvoFlIsv.js";import"./vendor-charts-l0_txfiz.js";import"./vendor-radix-C5Vc2Qbp.js";const A=`"""
+>>>>>>>> upstream/main:frontend/dist/assets/NewPythonStrategy-Bfke7Rdo.js
 Example OpenAlgo Strategy
 This is a minimal example showing how to use the OpenAlgo Python SDK.
 """
