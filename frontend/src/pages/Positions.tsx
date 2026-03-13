@@ -52,7 +52,7 @@ import {
 } from '@/components/ui/table'
 import { useLivePrice } from '@/hooks/useLivePrice'
 import { usePageVisibility } from '@/hooks/usePageVisibility'
-import { cn, makeFormatCurrency, sanitizeCSV } from '@/lib/utils'
+import { cn, sanitizeCSV } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 import { onModeChange } from '@/stores/themeStore'
 import type { Position } from '@/types/trading'
@@ -72,6 +72,14 @@ interface FilterState {
 interface Preferences {
   grouping: GroupingType
   filters: FilterState
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+  }).format(value)
 }
 
 function parseSymbol(symbol: string, exchange: string) {
@@ -137,8 +145,7 @@ const PRODUCT_COLORS: Record<string, string> = {
 }
 
 export default function Positions() {
-  const { apiKey, user } = useAuthStore()
-  const formatCurrency = useMemo(() => makeFormatCurrency(user?.broker), [user?.broker])
+  const { apiKey } = useAuthStore()
   const [positions, setPositions] = useState<Position[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -906,7 +913,7 @@ export default function Positions() {
                               )}
                             >
                               {groupStats.totalPnl >= 0 ? '+' : ''}
-                              {formatCurrency(groupStats.totalPnl)}
+                              {groupStats.totalPnl.toFixed(2)}
                             </TableCell>
                             <TableCell
                               className={cn(

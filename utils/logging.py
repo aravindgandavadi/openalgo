@@ -66,16 +66,7 @@ class WerkzeugErrorFilter(logging.Filter):
         "greenlet.GreenletExit",  # Normal greenlet termination
     ]
 
-    def filter(self, record) -> bool:
-        """
-        Filter out specific development server errors.
-
-        Args:
-            record (logging.LogRecord): The log record to check.
-
-        Returns:
-            bool: False if the record matches a suppressed pattern, True otherwise.
-        """
+    def filter(self, record):
         try:
             msg = str(record.msg)
             # Check if this is a suppressed error pattern
@@ -104,16 +95,7 @@ class WebSocketHandshakeFilter(logging.Filter):
         "connection closed while reading HTTP request line",
     ]
 
-    def filter(self, record) -> bool:
-        """
-        Filter out specific WebSocket handshake errors.
-
-        Args:
-            record (logging.LogRecord): The log record to check.
-
-        Returns:
-            bool: False if the record matches a suppressed pattern, True otherwise.
-        """
+    def filter(self, record):
         try:
             msg = str(record.getMessage())
             for pattern in self.SUPPRESSED_PATTERNS:
@@ -134,16 +116,7 @@ class WebSocketHandshakeFilter(logging.Filter):
 class SensitiveDataFilter(logging.Filter):
     """Filter to redact sensitive information from log messages."""
 
-    def filter(self, record) -> bool:
-        """
-        Redact sensitive data from the log message.
-
-        Args:
-            record (logging.LogRecord): The log record to modify.
-
-        Returns:
-            bool: Always True, as this filter modifies the record in-place rather than filtering it out.
-        """
+    def filter(self, record):
         try:
             # Filter the main message
             for pattern, replacement in SENSITIVE_PATTERNS:

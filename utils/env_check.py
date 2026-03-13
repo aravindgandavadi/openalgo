@@ -4,18 +4,15 @@ import sys
 from dotenv import load_dotenv
 
 
-def configure_llvmlite_paths() -> None:
+def configure_llvmlite_paths():
     """
     Configure LLVMLITE/NUMBA paths to avoid 'failed to map segment' errors.
 
-    On hardened Linux servers, /tmp is often mounted with the 'noexec' flag,
+    On hardened Linux servers, /tmp is often mounted with 'noexec' flag,
     which prevents llvmlite from loading its shared library.
 
     This sets alternative directories for llvmlite/numba cache and temp files.
     Must be called BEFORE any imports that might trigger llvmlite loading.
-
-    Returns:
-        None
     """
     # Only configure on Linux (Windows/macOS don't have this issue)
     if sys.platform != 'linux':
@@ -47,11 +44,10 @@ def configure_llvmlite_paths() -> None:
     check_tmp_noexec()
 
 
-def check_tmp_noexec() -> None:
+def check_tmp_noexec():
     """
-    Check if /tmp is mounted with the noexec flag and print a warning.
-
-    This helps users understand why llvmlite might fail to load.
+    Check if /tmp is mounted with noexec flag and print a warning.
+    This helps users understand why llvmlite might fail.
     """
     if sys.platform != 'linux':
         return
@@ -80,12 +76,10 @@ def check_tmp_noexec() -> None:
         pass  # Can't read /proc/mounts, skip the check
 
 
-def check_env_version_compatibility() -> bool:
+def check_env_version_compatibility():
     """
-    Check if the .env file version matches the .sample.env version.
-
-    Returns:
-        bool: True if compatible, False if an update is needed.
+    Check if .env file version matches .sample.env version
+    Returns True if compatible, False if update needed
     """
     base_dir = os.path.dirname(__file__) + "/.."
     env_path = os.path.join(base_dir, ".env")
@@ -142,17 +136,9 @@ def check_env_version_compatibility() -> bool:
     # Compare versions using simple string comparison for semantic versions
     try:
 
-        def version_tuple(v: str) -> tuple:
-            """
-            Convert version string to tuple of integers for comparison.
-            
-            Args:
-                v (str): Version string (e.g. '1.5.0').
-            
-            Returns:
-                tuple: Tuple of integers (e.g. (1, 5, 0)).
-            """
-            return tuple(int(x) for x in v.split('.'))
+        def version_tuple(v):
+            """Convert version string to tuple of integers for comparison"""
+            return tuple(map(int, v.split(".")))
 
         env_ver = version_tuple(env_version)
         sample_ver = version_tuple(sample_version)
@@ -206,13 +192,7 @@ def check_env_version_compatibility() -> bool:
     return True
 
 
-def load_and_check_env_variables() -> None:
-    """
-    Load environment variables from .env and check for required critical variables.
-
-    Raises:
-        SystemExit: If the .env file is missing or required variables are not set.
-    """
+def load_and_check_env_variables():
     # Configure LLVMLITE/NUMBA paths FIRST (before any imports can trigger loading)
     # This fixes "failed to map segment from shared object" on hardened Linux servers
     configure_llvmlite_paths()

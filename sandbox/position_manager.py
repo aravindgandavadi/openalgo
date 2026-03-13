@@ -22,7 +22,6 @@ import pytz
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.sandbox_db import SandboxPositions, SandboxTrades, db_session, get_config
-from database.token_db import get_symbol_info
 from sandbox.fund_manager import FundManager
 from sandbox.holdings_manager import HoldingsManager
 from services.market_data_service import get_market_data_service
@@ -54,7 +53,7 @@ def parse_expiry_from_symbol(symbol, exchange):
     import re
 
     # Only process F&O exchanges
-    fo_exchanges = ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX", "CRYPTO"]
+    fo_exchanges = ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX"]
     if exchange not in fo_exchanges:
         return None
 
@@ -174,17 +173,6 @@ class PositionManager:
         self.user_id = user_id
         self.fund_manager = FundManager(user_id)
 
-    def _get_contract_value(self, symbol: str, exchange: str) -> Decimal:
-        """Look up contract_value multiplier for a symbol (e.g. 0.01 for ETHUSD.P).
-        Returns 1.0 for normal equity instruments."""
-        try:
-            sym_info = get_symbol_info(symbol, exchange)
-            if sym_info and sym_info.contract_value and float(sym_info.contract_value) != 1.0:
-                return Decimal(str(sym_info.contract_value))
-        except Exception:
-            pass
-        return Decimal("1.0")
-
     def _check_and_close_expired_positions(self, positions):
         """
         Check for expired F&O contracts and auto-close them.
@@ -273,8 +261,7 @@ class PositionManager:
         avg_price = Decimal(str(position.average_price))
         margin_blocked = Decimal(str(position.margin_blocked or 0))
 
-        # Determine settlement price based on instrument type.
-        # CRYPTO canonical suffixes: CE/PE = option, FUT = dated future, no suffix = perpetual.
+        # Determine settlement price based on instrument type
         is_option = symbol.endswith("CE") or symbol.endswith("PE")
 
         if is_option:
@@ -465,16 +452,6 @@ class PositionManager:
             total_today_realized_pnl = Decimal("0.00")  # Today's realized P&L
             total_pnl_today = Decimal("0.00")  # Today's total (realized + unrealized)
 
-            # Build contract_value lookup map for all positions using in-memory cache
-            try:
-                _cv_map = {}
-                for p in positions:
-                    sym_info = get_symbol_info(p.symbol, p.exchange)
-                    if sym_info and sym_info.contract_value:
-                        _cv_map[p.symbol] = float(sym_info.contract_value)
-            except Exception:
-                _cv_map = {}
-
             for position in positions:
                 unrealized_pnl = Decimal(str(position.pnl))  # Current unrealized P&L from MTM
                 today_realized = Decimal(str(position.today_realized_pnl or 0))
@@ -494,10 +471,8 @@ class PositionManager:
                 # Calculate P&L% based on total P&L (realized + unrealized) for the day
                 # For open positions: % based on total investment
                 # For closed positions (qty=0): 0% (like Zerodha - avg resets to 0, can't calculate)
-                pos_cv = _cv_map.get(position.symbol, 1.0)
-                pos_cv_dec = Decimal(str(pos_cv))
                 if position.quantity != 0:
-                    investment = abs(Decimal(str(position.average_price)) * Decimal(str(position.quantity)) * pos_cv_dec)
+                    investment = abs(Decimal(str(position.average_price)) * Decimal(str(position.quantity)))
                     if investment > 0:
                         calculated_pnl_percent = (position_total_pnl_today / investment) * Decimal("100")
                     else:
@@ -523,7 +498,6 @@ class PositionManager:
                         "unrealized_pnl": float(unrealized_pnl),  # Unrealized only (for reference)
                         "today_realized_pnl": float(today_realized),
                         "total_pnl_today": float(position_total_pnl_today),
-                        "lot_size": pos_cv,  # contract_value multiplier (e.g. 0.01 for ETHUSD.P)
                     }
                 )
 
@@ -648,9 +622,8 @@ class PositionManager:
                         position.ltp = ltp
 
                         # Calculate current unrealized P&L for open position
-                        cv = self._get_contract_value(position.symbol, position.exchange)
                         current_unrealized_pnl = self._calculate_position_pnl(
-                            position.quantity, position.average_price, ltp, contract_value=cv
+                            position.quantity, position.average_price, ltp
                         )
 
                         # pnl = unrealized only (broker standard - Zerodha Kite style)
@@ -692,9 +665,8 @@ class PositionManager:
                     position.ltp = ltp
 
                     # Calculate current unrealized P&L for open position
-                    cv = self._get_contract_value(position.symbol, position.exchange)
                     current_unrealized_pnl = self._calculate_position_pnl(
-                        position.quantity, position.average_price, ltp, contract_value=cv
+                        position.quantity, position.average_price, ltp
                     )
 
                     # pnl = unrealized only (broker standard - Zerodha Kite style)
@@ -709,20 +681,19 @@ class PositionManager:
             db_session.rollback()
             logger.exception(f"Error updating position MTM for {position.symbol}: {e}")
 
-    def _calculate_position_pnl(self, quantity, avg_price, ltp, contract_value=None):
-        """Calculate P&L for a position, multiplied by contract_value (e.g. 0.01 for ETHUSD.P)."""
+    def _calculate_position_pnl(self, quantity, avg_price, ltp):
+        """Calculate P&L for a position"""
         try:
             quantity = Decimal(str(quantity))
             avg_price = Decimal(str(avg_price))
             ltp = Decimal(str(ltp))
-            cv = Decimal(str(contract_value)) if contract_value is not None else Decimal("1.0")
 
             if quantity > 0:
                 # Long position
-                pnl = (ltp - avg_price) * quantity * cv
+                pnl = (ltp - avg_price) * quantity
             else:
                 # Short position
-                pnl = (avg_price - ltp) * abs(quantity) * cv
+                pnl = (avg_price - ltp) * abs(quantity)
 
             return pnl
 
@@ -1223,7 +1194,7 @@ def cleanup_expired_contracts():
         today = date.today()
 
         # Find all open positions in F&O exchanges
-        fo_exchanges = ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX", "CRYPTO"]
+        fo_exchanges = ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX"]
 
         expired_positions = []
 
@@ -1274,8 +1245,9 @@ def cleanup_expired_contracts():
                         avg_price = Decimal(str(position.average_price))
                         margin_blocked = Decimal(str(position.margin_blocked or 0))
 
-                        # Determine settlement price based on instrument type.
-                        # CRYPTO canonical suffixes: CE/PE = option, FUT/other = future/perpetual.
+                        # Determine settlement price based on instrument type
+                        # Options: Expire at 0 (most expire worthless - conservative approach)
+                        # Futures: Use last stored LTP, or average price as fallback
                         is_option = symbol.endswith("CE") or symbol.endswith("PE")
 
                         if is_option:

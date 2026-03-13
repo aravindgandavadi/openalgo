@@ -41,7 +41,6 @@ Beyond execution, OpenAlgo empowers traders to completely own their trading infr
 - AngelOne
 - Compositedge
 - Definedge
-- Delta Exchange
 - Dhan (Live + Sandbox)
 - Firstock
 - Flattrade
@@ -57,7 +56,6 @@ Beyond execution, OpenAlgo empowers traders to completely own their trading infr
 - Nubra
 - Paytm Money
 - Pocketful
-- RMoney
 - Samco
 - Shoonya (Finvasia)
 - Tradejini

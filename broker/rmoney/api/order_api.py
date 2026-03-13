@@ -6,7 +6,6 @@ import httpx
 
 from broker.rmoney.baseurl import INTERACTIVE_URL
 from broker.rmoney.mapping.transform_data import (
-    map_exchange,
     map_product_type,
     reverse_map_product_type,
     transform_data,
@@ -47,8 +46,8 @@ def get_api_response(endpoint, auth, method="GET", payload=""):
 
     # Add status attribute for compatibility with the existing codebase
     response.status = response.status_code
-    logger.info(f"RMoney API Response [{endpoint}] Status: {response.status_code}")
-    logger.debug(f"RMoney API Response [{endpoint}] Content: {response.text}")
+    # logger.info(f"Response Status Code: {response.status_code}")
+    # logger.info(f"Response Content: {response.text}")
     return response.json()
 
 
@@ -70,50 +69,22 @@ def get_holdings(auth):
 
 def get_open_position(tradingsymbol, exchange, producttype, auth):
     # Convert Trading Symbol from OpenAlgo Format to Broker Format Before Search in OpenPosition
+
     tradingsymbol = get_br_symbol(tradingsymbol, exchange)
     positions_data = get_positions(auth)
 
-    # Map exchange from OpenAlgo format to XTS format
-    exchange_mapping = {
-        "NSE": "NSECM",
-        "BSE": "BSECM",
-        "NFO": "NSEFO",
-        "BFO": "BSEFO",
-        "MCX": "MCXFO",
-        "CDS": "NSECD",
-    }
-    xts_exchange = exchange_mapping.get(exchange, exchange)
-
     net_qty = "0"
 
-    logger.info(
-        f"Looking for position: symbol={tradingsymbol}, exchange={xts_exchange}, product={producttype}"
-    )
-
-    # XTS returns {"type": "success", "result": [...]} (flat list)
-    # or {"type": "success", "result": {"positionList": [...]}} depending on endpoint
-    if positions_data and positions_data.get("type") == "success":
-        result = positions_data.get("result", [])
-        # Handle both flat list and positionList wrapper
-        if isinstance(result, dict):
-            position_list = result.get("positionList", [])
-        elif isinstance(result, list):
-            position_list = result
-        else:
-            position_list = []
-
-        for position in position_list:
-            pos_symbol = position.get("TradingSymbol", "")
-            pos_exchange = position.get("ExchangeSegment", "")
-            pos_product = position.get("ProductType", "")
+    if positions_data and positions_data.get("status") and positions_data.get("data"):
+        for position in positions_data["data"]:
             if (
-                pos_symbol == tradingsymbol
-                and pos_exchange == xts_exchange
-                and pos_product == producttype
+                position.get("tradingsymbol") == tradingsymbol
+                and position.get("exchange") == exchange
+                and position.get("producttype") == producttype
             ):
-                net_qty = str(position.get("Quantity", 0))
-                logger.info(f"Found matching position. Net Quantity: {net_qty}")
-                break
+                net_qty = position.get("Quantity", "0")
+                # logger.info(f"Net Quantity: {net_qty}")
+                break  # Assuming you need the first match
 
     return net_qty
 
@@ -157,7 +128,6 @@ def place_order_api(data, auth):
             "raw_response": response.text,
         }
 
-
     orderid = (
         response_data.get("result", {}).get("AppOrderID")
         if response_data.get("type") == "success"
@@ -184,9 +154,6 @@ def place_smartorder_api(data, auth):
         get_open_position(symbol, exchange, map_product_type(product), AUTH_TOKEN)
     )
 
-    logger.info(f"position_size : {position_size}")
-    logger.info(f"Open Position : {current_position}")
-
     # Determine action based on position_size and current_position
     action = None
     quantity = 0
@@ -195,7 +162,12 @@ def place_smartorder_api(data, auth):
     if position_size == 0 and current_position == 0 and int(data["quantity"]) != 0:
         action = data["action"]
         quantity = data["quantity"]
+        # logger.info(f"action : {action}")
+        # logger.info(f"Quantity : {quantity}")
         res, response, orderid = place_order_api(data, AUTH_TOKEN)
+        # logger.info(f"{res}")
+        # logger.info(f"{response}")
+
         return res, response, orderid
 
     elif position_size == current_position:
@@ -210,7 +182,7 @@ def place_smartorder_api(data, auth):
                 "message": "No action needed. Position size matches current position",
             }
         orderid = None
-        return res, response, orderid  # res remains None as no API call was made
+        return res, response, orderid  # res remains None as no API call was mad
 
     if position_size == 0 and current_position > 0:
         action = "SELL"
@@ -225,9 +197,11 @@ def place_smartorder_api(data, auth):
         if position_size > current_position:
             action = "BUY"
             quantity = position_size - current_position
+            # logger.info(f"smart buy quantity : {quantity}")
         elif position_size < current_position:
             action = "SELL"
             quantity = current_position - position_size
+            # logger.info(f"smart sell quantity : {quantity}")
 
     if action:
         # Prepare data for placing the order
@@ -235,8 +209,10 @@ def place_smartorder_api(data, auth):
         order_data["action"] = action
         order_data["quantity"] = str(quantity)
 
+        # logger.info(f"{order_data}")
         # Place the order
         res, response, orderid = place_order_api(order_data, auth)
+        # logger.info(f"{res}")
         logger.info(f"{response}")
         logger.info(f"{orderid}")
 
@@ -250,34 +226,22 @@ def close_all_positions(current_api_key, auth):
     positions_response = get_positions(AUTH_TOKEN)
     logger.info(f"Open_positions : {positions_response}")
 
-    # Handle both flat list and positionList wrapper
-    if not positions_response or positions_response.get("type") != "success":
-        return {"message": "No Open Positions Found"}, 200
-
-    result = positions_response.get("result", [])
-    if isinstance(result, dict):
-        positions_list = result.get("positionList", [])
-    elif isinstance(result, list):
-        positions_list = result
-    else:
-        positions_list = []
-
+    positions_list = positions_response.get("result", {}).get("positionList", [])
     if not positions_list:
         return {"message": "No Open Positions Found"}, 200
 
     # If response has positions
     for position in positions_list:
         # Skip if net quantity is zero
-        net_qty = int(position.get("Quantity", 0))
-        if net_qty == 0:
+        if int(position["Quantity"]) == 0:
             continue
 
         # Determine action based on net quantity
-        action = "SELL" if net_qty > 0 else "BUY"
-        quantity = abs(net_qty)
+        action = "SELL" if int(position["Quantity"]) > 0 else "BUY"
+        quantity = abs(int(position["Quantity"]))
 
         exchange_segment = position["ExchangeSegment"]
-        instrument_id = position.get("ExchangeInstrumentID", position.get("ExchangeInstrumentId"))
+        instrument_id = position["ExchangeInstrumentId"]
 
         logger.info(f"Exchange Segment: {exchange_segment}")
         logger.info(f"Exchange Instrument ID: {instrument_id}")
@@ -299,6 +263,10 @@ def close_all_positions(current_api_key, auth):
 
         # Place the order to close the position
         res, response, orderid = place_order_api(place_order_payload, auth)
+
+        # logger.info(f"{res}")
+        # logger.info(f"{response}")
+        # logger.info(f"{orderid}")
 
         # Note: Ensure place_order_api handles any errors and logs accordingly
 

@@ -27,9 +27,22 @@ from database.symbol import SymToken
 from database.token_db import get_symbol_info
 from sandbox.fund_manager import FundManager
 from utils.logging import get_logger
-from utils.symbol_utils import is_future, is_option
 
 logger = get_logger(__name__)
+
+
+def is_option(symbol, exchange):
+    """Check if symbol is an option based on exchange and symbol suffix"""
+    if exchange in ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX"]:
+        return symbol.endswith("CE") or symbol.endswith("PE")
+    return False
+
+
+def is_future(symbol, exchange):
+    """Check if symbol is a future based on exchange and symbol suffix"""
+    if exchange in ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX"]:
+        return symbol.endswith("FUT")
+    return False
 
 
 class OrderManager:
@@ -66,7 +79,7 @@ class OrderManager:
 
             # Extract order parameters
             symbol = order_data["symbol"]
-            exchange = order_data["exchange"].upper()
+            exchange = order_data["exchange"]
             action = order_data["action"].upper()
             quantity = int(order_data["quantity"])
             price = Decimal(str(order_data.get("price", 0))) if order_data.get("price") else None
@@ -93,7 +106,7 @@ class OrderManager:
                 )
 
             # Validate lot size for F&O
-            if exchange in ["NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX", "CRYPTO"]:
+            if exchange in ["NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX"]:
                 lot_size = symbol_obj.lotsize or 1
                 if quantity % lot_size != 0:
                     return (
@@ -671,7 +684,7 @@ class OrderManager:
                 new_quantity = int(new_data["quantity"])
                 # Validate lot size (from cache)
                 symbol_obj = get_symbol_info(order.symbol, order.exchange)
-                if symbol_obj and order.exchange in ["NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX", "CRYPTO"]:
+                if symbol_obj and order.exchange in ["NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX"]:
                     lot_size = symbol_obj.lotsize or 1
                     if new_quantity % lot_size != 0:
                         return (
@@ -1032,7 +1045,7 @@ class OrderManager:
                 )
 
         # Derivatives exchanges (F&O, Commodity, Currency): Only NRML and MIS allowed
-        if exchange in ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX", "CRYPTO"]:
+        if exchange in ["NFO", "BFO", "MCX", "CDS", "BCD", "NCDEX"]:
             if product == "CNC":
                 return (
                     False,
@@ -1070,7 +1083,7 @@ class OrderManager:
                 return False, "Invalid trigger_price"
 
         # Validate exchange
-        valid_exchanges = ["NSE", "BSE", "NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX", "CRYPTO"]
+        valid_exchanges = ["NSE", "BSE", "NFO", "BFO", "CDS", "BCD", "MCX", "NCDEX"]
         if order_data["exchange"].upper() not in valid_exchanges:
             return False, f"Invalid exchange. Must be one of {', '.join(valid_exchanges)}"
 

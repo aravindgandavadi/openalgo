@@ -160,17 +160,7 @@ class TelegramBotConfig(Resource):
             if "broadcast_enabled" in data:
                 config_update["broadcast_enabled"] = data["broadcast_enabled"]
             if "rate_limit_per_minute" in data:
-                try:
-                    rate_limit = int(data["rate_limit_per_minute"])
-                    if not 1 <= rate_limit <= 120:
-                        return make_response(
-                            jsonify({"status": "error", "message": "rate_limit_per_minute must be between 1 and 120"}), 400
-                        )
-                    config_update["rate_limit_per_minute"] = rate_limit
-                except (TypeError, ValueError):
-                    return make_response(
-                        jsonify({"status": "error", "message": "rate_limit_per_minute must be an integer"}), 400
-                    )
+                config_update["rate_limit_per_minute"] = data["rate_limit_per_minute"]
 
             success = update_bot_config(config_update)
 
@@ -401,14 +391,9 @@ class BroadcastMessage(Resource):
             message = data.get("message")
             filters = data.get("filters", {})
 
-            if not message or not isinstance(message, str):
+            if not message:
                 return make_response(
                     jsonify({"status": "error", "message": "Message is required"}), 400
-                )
-
-            if len(message) > 4096:
-                return make_response(
-                    jsonify({"status": "error", "message": "Message must not exceed 4096 characters"}), 400
                 )
 
             # Check if broadcast is enabled
@@ -460,12 +445,7 @@ class SendNotification(Resource):
 
             username = data.get("username")
             message = data.get("message")
-            try:
-                priority = int(data.get("priority", 5))
-                if not 1 <= priority <= 10:
-                    priority = 5
-            except (TypeError, ValueError):
-                priority = 5
+            priority = data.get("priority", 5)
 
             if not username or not message:
                 return make_response(
@@ -546,11 +526,8 @@ class TelegramStats(Resource):
                     jsonify({"status": "error", "message": "Invalid or missing API key"}), 401
                 )
 
-            # Get days parameter (default 7, max 365)
-            try:
-                days = min(max(int(request.args.get("days", 7)), 1), 365)
-            except (TypeError, ValueError):
-                days = 7
+            # Get days parameter (default 7)
+            days = int(request.args.get("days", 7))
 
             stats = get_command_stats(days)
 

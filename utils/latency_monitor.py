@@ -14,10 +14,7 @@ logger = get_logger(__name__)
 class LatencyTracker:
     """Helper class to track latencies across different stages of order execution"""
 
-    def __init__(self) -> None:
-        """
-        Initialize the LatencyTracker instance.
-        """
+    def __init__(self):
         self.start_time = time.time()
         self.stage_times = {}
         self.current_stage = None
@@ -62,27 +59,8 @@ def track_latency(api_type):
     """Decorator to track latency for API endpoints"""
 
     def decorator(f):
-        """
-        The actual decorator that wraps the target function.
-
-        Args:
-            f (callable): The function to be decorated.
-
-        Returns:
-            callable: The wrapped function.
-        """
         @wraps(f)
         def wrapped(*args, **kwargs):
-            """
-            The wrapped function that instruments execution time and context.
-
-            Args:
-                *args: Positional arguments passed to the original function.
-                **kwargs: Keyword arguments passed to the original function.
-
-            Returns:
-                Any: The response from the original function.
-            """
             # Initialize latency tracker
             tracker = LatencyTracker()
             g.latency_tracker = tracker

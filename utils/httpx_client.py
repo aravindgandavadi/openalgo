@@ -76,58 +76,18 @@ def request(method: str, url: str, **kwargs) -> httpx.Response:
 
 # Shortcut methods for common HTTP methods
 def get(url: str, **kwargs) -> httpx.Response:
-    """
-    Send a GET request.
-
-    Args:
-        url (str): The URL to send the GET request to.
-        **kwargs: Additional arguments passed to the underlying request method.
-
-    Returns:
-        httpx.Response: The HTTP response from the server.
-    """
     return request("GET", url, **kwargs)
 
 
 def post(url: str, **kwargs) -> httpx.Response:
-    """
-    Send a POST request.
-
-    Args:
-        url (str): The URL to send the POST request to.
-        **kwargs: Additional arguments passed to the underlying request method.
-
-    Returns:
-        httpx.Response: The HTTP response from the server.
-    """
     return request("POST", url, **kwargs)
 
 
 def put(url: str, **kwargs) -> httpx.Response:
-    """
-    Send a PUT request.
-
-    Args:
-        url (str): The URL to send the PUT request to.
-        **kwargs: Additional arguments passed to the underlying request method.
-
-    Returns:
-        httpx.Response: The HTTP response from the server.
-    """
     return request("PUT", url, **kwargs)
 
 
 def delete(url: str, **kwargs) -> httpx.Response:
-    """
-    Send a DELETE request.
-
-    Args:
-        url (str): The URL to send the DELETE request to.
-        **kwargs: Additional arguments passed to the underlying request method.
-
-    Returns:
-        httpx.Response: The HTTP response from the server.
-    """
     return request("DELETE", url, **kwargs)
 
 
@@ -208,15 +168,10 @@ def _create_http_client() -> httpx.Client:
         raise
 
 
-def cleanup_httpx_client() -> None:
+def cleanup_httpx_client():
     """
     Closes the global httpx client and releases its resources.
-
-    Should be called when the application is shutting down to prevent
-    resource leaks.
-
-    Returns:
-        None
+    Should be called when the application is shutting down.
     """
     global _httpx_client
 

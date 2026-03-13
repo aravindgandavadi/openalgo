@@ -195,7 +195,7 @@ class NATSProtocol:
 
             elif self.pending_data.startswith(MSG):
                 # MSG format: MSG <subject> <sid> [reply-to] <#bytes>\r\n<payload>\r\n
-                logger.debug("Found MSG in data stream")
+                logger.info("🔍 Found MSG in data stream")
                 end_idx = self.pending_data.find("\r\n")
                 if end_idx == -1:
                     logger.debug("MSG header incomplete, waiting for more data")
@@ -267,13 +267,13 @@ class NATSProtocol:
 
                 self.pending_data = remaining[size + 2 :]  # Skip payload and \r\n
 
-                logger.debug(f"MSG parsed - Subject: {subject}, SID: {sid}, Size: {size}")
+                logger.info(f"📊 MSG parsed - Subject: {subject}, SID: {sid}, Size: {size}")
 
                 # Process the message
                 if sid in self.subscriptions:
                     sub = self.subscriptions[sid]
                     sub.received_msgs += 1
-                    logger.debug(f"Subscription found for SID {sid}: {sub.subject}")
+                    logger.info(f"✅ Subscription found for SID {sid}: {sub.subject}")
 
                     messages.append(
                         {

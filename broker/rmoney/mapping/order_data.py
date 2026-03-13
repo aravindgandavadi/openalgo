@@ -1,4 +1,5 @@
 import json
+from turtle import position
 
 from database.token_db import get_oa_symbol, get_symbol
 from utils.logging import get_logger
@@ -292,7 +293,7 @@ def transform_positions_data(positions_data):
         if not isinstance(position, dict):  # Ensure it's a dictionary
             logger.info(f"Skipping invalid position: {position}")
             continue
-        symboltoken = position.get("ExchangeInstrumentID", position.get("ExchangeInstrumentId"))
+        symboltoken = position.get("ExchangeInstrumentId")
 
         exchange = position.get("ExchangeSegment", "")
         mapped_exchange = exchange_mapping.get(exchange, exchange)
