@@ -140,6 +140,7 @@ from blueprints.historify import historify_bp  # Import the historify blueprint
 from blueprints.ivchart import ivchart_bp  # Import the IV chart blueprint
 from blueprints.oitracker import oitracker_bp  # Import the OI tracker blueprint
 from blueprints.straddle_chart import straddle_bp  # Import the straddle chart blueprint
+from blueprints.custom_straddle import custom_straddle_bp  # Import custom straddle blueprint
 from blueprints.vol_surface import vol_surface_bp  # Import the vol surface blueprint
 from blueprints.latency import latency_bp  # Import the latency blueprint
 from blueprints.health import health_bp  # Import the health monitoring blueprint
@@ -219,6 +220,11 @@ def create_app():
 
     # Initialize SocketIO
     socketio.init_app(app)  # Link SocketIO to the Flask app
+
+    # Initialize EventBus subscribers
+    from subscribers import register_all as register_event_subscribers
+
+    register_event_subscribers()
 
     # Initialize CSRF protection
     csrf = CSRFProtect(app)
@@ -347,6 +353,7 @@ def create_app():
     app.register_blueprint(ivchart_bp)  # Register IV chart blueprint
     app.register_blueprint(oitracker_bp)  # Register OI tracker blueprint
     app.register_blueprint(straddle_bp)  # Register straddle chart blueprint
+    app.register_blueprint(custom_straddle_bp)  # Register custom straddle blueprint
     app.register_blueprint(vol_surface_bp)  # Register vol surface blueprint
     app.register_blueprint(gex_bp)  # Register GEX blueprint
     app.register_blueprint(ivsmile_bp)  # Register IV Smile blueprint
