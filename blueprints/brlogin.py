@@ -479,17 +479,30 @@ def broker_callback(broker, para=None):
             return redirect(zebu_login_url)
 
     elif broker == "shoonya":
-        if request.method == "GET":
-            # Redirect to React TOTP page
-            return redirect("/broker/shoonya/totp")
-
-        elif request.method == "POST":
-            userid = request.form.get("userid")
-            password = request.form.get("password")
-            totp_code = request.form.get("totp")
-
-            auth_token, error_message = auth_function(userid, password, totp_code)
+        code = request.args.get("code")
+        if code:
+            logger.debug("Shoonya broker - OAuth callback received")
+            auth_token, error_message = auth_function(code)
             forward_url = "broker.html"
+        else:
+            # Initial visit — redirect to Shoonya OAuth login page
+            logger.info("Redirecting to Shoonya OAuth login page")
+            # BROKER_API_KEY format: userid:::client_id
+            full_api_key = os.getenv("BROKER_API_KEY")
+            if not full_api_key:
+                return handle_auth_failure(
+                    "BROKER_API_KEY not configured in environment",
+                    forward_url="broker.html",
+                )
+            parts = full_api_key.split(":::", 1)
+            if len(parts) != 2 or not parts[1]:
+                return handle_auth_failure(
+                    "BROKER_API_KEY must be in format userid:::client_id",
+                    forward_url="broker.html",
+                )
+            client_id = parts[1]  # OAuth client_id
+            shoonya_login_url = f"https://api.shoonya.com/OAuthlogin/authorize/oauth?client_id={client_id}"
+            return redirect(shoonya_login_url)
 
     elif broker == "firstock":
         if request.method == "GET":
@@ -520,13 +533,12 @@ def broker_callback(broker, para=None):
 
     elif broker == "samco":
         if request.method == "GET":
-            # Redirect to React TOTP page
-            return redirect("/broker/samco/totp")
+            # Redirect to Samco multi-step auth wizard
+            return redirect("/broker/samco/auth")
 
         elif request.method == "POST":
-            yob = request.form.get("yob")
-
-            auth_token, error_message = auth_function(yob)
+            # Daily login: generate access token + login using stored secret key
+            auth_token, error_message = auth_function()
             forward_url = "broker.html"
 
     elif broker == "motilal":
@@ -882,3 +894,156 @@ def dhan_initiate_oauth():
 # def broker_loginflow(broker):
 #     # This function is no longer used for Kotak TOTP authentication
 #     pass
+
+
+# ============================================================
+# Samco 2FA Routes
+# ============================================================
+
+
+@brlogin_bp.route("/samco/generate-otp", methods=["POST"])
+@limiter.limit(LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(LOGIN_RATE_LIMIT_HOUR)
+def samco_generate_otp():
+    """Generate OTP for Samco 2FA setup"""
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    from broker.samco.api.auth_api import generate_otp, get_client_id
+
+    uid = get_client_id()
+    if not uid:
+        return jsonify({"status": "error", "message": "BROKER_API_KEY not configured"}), 400
+
+    data, error = generate_otp(uid)
+    if error:
+        return jsonify({"status": "error", "message": error}), 400
+
+    return jsonify({"status": "success", "message": data.get("statusMessage", "OTP sent")})
+
+
+@brlogin_bp.route("/samco/generate-secret", methods=["POST"])
+@limiter.limit(LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(LOGIN_RATE_LIMIT_HOUR)
+def samco_generate_secret():
+    """Generate Secret API Key using OTP"""
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    from broker.samco.api.auth_api import generate_secret_key, get_client_id
+
+    uid = get_client_id()
+    otp = request.json.get("otp") if request.is_json else request.form.get("otp")
+
+    if not otp:
+        return jsonify({"status": "error", "message": "OTP is required"}), 400
+
+    data, error = generate_secret_key(uid, otp)
+    if error:
+        return jsonify({"status": "error", "message": error}), 400
+
+    return jsonify({
+        "status": "success",
+        "message": data.get("statusMessage", "Secret key sent to your email"),
+    })
+
+
+@brlogin_bp.route("/samco/save-secret", methods=["POST"])
+@limiter.limit(LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(LOGIN_RATE_LIMIT_HOUR)
+def samco_save_secret():
+    """Save the secret API key received via email"""
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    from broker.samco.api.auth_api import get_client_id
+    from database.auth_db import samco_save_secret_key as save_secret_key
+
+    uid = get_client_id()
+    secret_key = request.json.get("secretApiKey") if request.is_json else request.form.get("secretApiKey")
+
+    if not secret_key:
+        return jsonify({"status": "error", "message": "Secret API key is required"}), 400
+
+    if save_secret_key(uid, secret_key):
+        return jsonify({"status": "success", "message": "Secret API key saved successfully"})
+    else:
+        return jsonify({"status": "error", "message": "Failed to save secret API key"}), 500
+
+
+@brlogin_bp.route("/samco/ip-status", methods=["GET"])
+@limiter.limit(LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(LOGIN_RATE_LIMIT_HOUR)
+def samco_ip_status():
+    """Get IP registration status"""
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    from broker.samco.api.auth_api import get_client_id
+    from database.auth_db import samco_get_ip_status as get_ip_status, samco_has_secret_key as has_secret_key
+
+    uid = get_client_id()
+    ip_status = get_ip_status(uid)
+    ip_status["has_secret_key"] = has_secret_key(uid)
+    ip_status["status"] = "success"
+
+    return jsonify(ip_status)
+
+
+@brlogin_bp.route("/samco/update-ip", methods=["POST"])
+@limiter.limit(LOGIN_RATE_LIMIT_MIN)
+@limiter.limit(LOGIN_RATE_LIMIT_HOUR)
+def samco_update_ip():
+    """Register or update IP addresses"""
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not logged in"}), 401
+
+    from broker.samco.api.auth_api import get_client_id, get_password, register_ip, update_ip
+    from database.auth_db import samco_get_ip_status as get_ip_status, samco_has_registered_ip as has_registered_ip, samco_save_ip_info as save_ip_info
+
+    uid = get_client_id()
+    password = get_password()
+
+    primary_ip = request.json.get("primaryIp") if request.is_json else request.form.get("primaryIp")
+    secondary_ip = request.json.get("secondaryIp") if request.is_json else request.form.get("secondaryIp")
+
+    if not primary_ip:
+        return jsonify({"status": "error", "message": "Primary IP is required"}), 400
+
+    # Check weekly lock — allow if secondary IP is not yet registered
+    status = get_ip_status(uid)
+    secondary_missing = status["primary_ip"] and not status["secondary_ip"]
+    if not status["editable"] and has_registered_ip(uid) and not secondary_missing:
+        return jsonify({
+            "status": "error",
+            "message": f"IP can only be updated once per calendar week. Next edit: {status['next_editable_date']}",
+        }), 400
+
+    # Use register for first time, update for subsequent
+    if has_registered_ip(uid):
+        data, error = update_ip(uid, password, primary_ip, secondary_ip)
+    else:
+        data, error = register_ip(uid, password, primary_ip, secondary_ip)
+
+    if error:
+        return jsonify({"status": "error", "message": error}), 400
+
+    # Parse ip_updated_at from response if available
+    ip_updated_at = None
+    if data and data.get("data") and data["data"].get("ip_updated_at"):
+        from datetime import datetime
+
+        try:
+            ip_updated_at = datetime.fromisoformat(
+                data["data"]["ip_updated_at"].replace("Z", "+00:00")
+            )
+        except (ValueError, TypeError):
+            pass
+
+    # Save to DB
+    save_ip_info(uid, primary_ip, secondary_ip, ip_updated_at)
+
+    return jsonify({
+        "status": "success",
+        "message": data.get("statusMessage", "IP updated successfully"),
+    })
