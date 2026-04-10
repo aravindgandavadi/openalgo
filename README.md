@@ -48,6 +48,7 @@ Beyond execution, OpenAlgo empowers traders to completely own their trading infr
 - Groww
 - IBulls
 - IIFL
+- Iiflcapital
 - Indmoney
 - JainamXTS
 - Kotak Neo

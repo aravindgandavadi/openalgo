@@ -506,6 +506,7 @@ sudo rm -rf /var/lib/docker
 | Groww | `groww` | No |
 | IBulls | `ibulls` | Yes |
 | IIFL | `iifl` | Yes |
+| Iiflcapital | `iiflcapital` | No |
 | IndMoney | `indmoney` | No |
 | Jainam XTS | `jainamxts` | Yes |
 | Kotak | `kotak` | No |
