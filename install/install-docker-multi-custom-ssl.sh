@@ -842,9 +842,12 @@ for i in "${!CONF_DOMAINS[@]}"; do
         
         # Connectivity
         sed -i "s|WEBSOCKET_URL='.*'|WEBSOCKET_URL='wss://$DOMAIN/ws'|g" "$ENV_FILE"
+        # WEBSOCKET_HOST / FLASK_HOST_IP bind to 0.0.0.0 inside the container so
+        # the Docker port mapping can route traffic from the host's nginx.
         sed -i "s|WEBSOCKET_HOST='127.0.0.1'|WEBSOCKET_HOST='0.0.0.0'|g" "$ENV_FILE"
-        sed -i "s|ZMQ_HOST='127.0.0.1'|ZMQ_HOST='0.0.0.0'|g" "$ENV_FILE"
         sed -i "s|FLASK_HOST_IP='127.0.0.1'|FLASK_HOST_IP='0.0.0.0'|g" "$ENV_FILE"
+        # ZMQ_HOST stays on loopback: internal message bus, same-container only.
+        # Exposing it would leak the raw tick feed.
         sed -i "s|CORS_ALLOWED_ORIGINS = '.*'|CORS_ALLOWED_ORIGINS = 'https://$DOMAIN'|g" "$ENV_FILE"
         # CSP: Set connect sources with domain (delete-and-append avoids sed regex issues with nested quotes)
         # See: https://github.com/marketcalls/openalgo/issues/938
@@ -963,6 +966,21 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host \$host;
         proxy_read_timeout 86400s;
+    }
+
+    # Logic: Socket.IO (Flask-SocketIO real-time events)
+    location /socket.io/ {
+        proxy_pass http://openalgo_flask_${SANITIZED_NAME}/socket.io/;
+        proxy_http_version 1.1;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     # Logic: Main App

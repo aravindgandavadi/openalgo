@@ -340,9 +340,9 @@ for ((i=1; i<=INSTANCES; i++)); do
     # 4. Update WebSocket URL for production (secure WebSocket through nginx)
     sudo sed -i "s|WEBSOCKET_URL='.*'|WEBSOCKET_URL='wss://$DOMAIN/ws'|g" "$ENV_FILE"
 
-    # 5. Update host bindings to allow external connections
-    sudo sed -i "s|WEBSOCKET_HOST='127.0.0.1'|WEBSOCKET_HOST='0.0.0.0'|g" "$ENV_FILE"
-    sudo sed -i "s|ZMQ_HOST='127.0.0.1'|ZMQ_HOST='0.0.0.0'|g" "$ENV_FILE"
+    # 5. Host bindings intentionally left at 127.0.0.1 (the .sample.env default):
+    #    nginx on this host reverse-proxies /ws -> 127.0.0.1:WEBSOCKET_PORT, and
+    #    ZMQ is an internal message bus that must never be exposed publicly.
 
     # 6. Update API credentials
     sudo sed -i "s|YOUR_BROKER_API_KEY|$API_KEY|g" "$ENV_FILE"
@@ -485,6 +485,21 @@ server {
 
     location /ws/ {
         proxy_pass http://127.0.0.1:$WS_PORT/;
+        proxy_http_version 1.1;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Socket.IO (Flask-SocketIO real-time events)
+    location /socket.io/ {
+        proxy_pass http://unix:$SOCKET_FILE;
         proxy_http_version 1.1;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;

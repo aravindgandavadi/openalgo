@@ -759,9 +759,11 @@ fi
 # Update WebSocket URL for production
 sudo sed -i "s|WEBSOCKET_URL='.*'|WEBSOCKET_URL='wss://$DOMAIN/ws'|g" $OPENALGO_PATH/.env
 
-# Update host bindings to allow external connections
-sudo sed -i "s|WEBSOCKET_HOST='127.0.0.1'|WEBSOCKET_HOST='0.0.0.0'|g" $OPENALGO_PATH/.env
-sudo sed -i "s|ZMQ_HOST='127.0.0.1'|ZMQ_HOST='0.0.0.0'|g" $OPENALGO_PATH/.env
+# Host bindings intentionally left at 127.0.0.1 (the .sample.env default):
+# - nginx on this host reverse-proxies /ws -> 127.0.0.1:WEBSOCKET_PORT, so the
+#   WebSocket server does not need to listen on all interfaces.
+# - ZMQ is an internal message bus between broker adapters and the WS proxy;
+#   binding it to 0.0.0.0 would expose the raw tick feed to the public IP.
 
 check_status "Failed to configure environment file"
 
@@ -968,18 +970,42 @@ server {
     location /ws/ {
         proxy_pass http://127.0.0.1:8765/;
         proxy_http_version 1.1;
-        
+
         # Extended timeouts for long-running connections (up to 24 hours)
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-        
+
         # Disable proxy buffering for real-time data
         proxy_buffering off;
-        
+
         # WebSocket headers
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
+        # Other headers
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+    }
+
+    # Socket.IO (Flask-SocketIO real-time events)
+    location /socket.io/ {
+        proxy_pass http://unix:$SOCKET_FILE;
+        proxy_http_version 1.1;
+
+        # Extended timeouts for long-lived Socket.IO sessions
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+
+        # Disable proxy buffering for real-time events
+        proxy_buffering off;
+
+        # WebSocket upgrade headers (required for Socket.IO WebSocket transport)
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+
         # Other headers
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
